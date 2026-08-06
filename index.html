@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#122120" />
+    <title>PrimeOps · 基础设施控制台</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <div class="boot-screen" id="boot-screen" aria-label="PrimeOps 正在启动">
+      <div class="boot-shape boot-green"></div>
+      <div class="boot-shape boot-blue"></div>
+      <div class="boot-shape boot-pink"></div>
+      <div class="boot-content">
+        <div class="boot-brand"><div class="brand-mark"><span class="brand-letter">P</span></div><strong>PrimeOps</strong></div>
+        <div class="boot-title">infra<span>structure</span><br />experiments</div>
+        <div class="boot-status"><span class="live-dot"></span><span>正在连接控制平面</span><span class="mono">0<span id="boot-progress">0</span>%</span></div>
+        <div class="boot-progress"><span></span></div>
+      </div>
+    </div>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand-lockup">
+          <div class="brand-mark"><span class="brand-letter">P</span></div>
+          <div>
+            <div class="brand-name">PrimeOps</div>
+            <div class="brand-subtitle">INFRASTRUCTURE OS</div>
+          </div>
+        </div>
+
+        <div class="sidebar-scroll">
+          <div class="nav-label">工作台</div>
+          <nav class="nav-list">
+            <button class="nav-item active" data-section="overview"><i data-lucide="layout-dashboard"></i><span>主机总览</span><kbd>01</kbd></button>
+            <button class="nav-item" data-section="cluster"><i data-lucide="network"></i><span>集群监控</span><b class="nav-count">12</b></button>
+            <button class="nav-item" data-section="assistant"><i data-lucide="sparkles"></i><span>AI 运维助手</span><em>Beta</em></button>
+          </nav>
+
+          <div class="nav-label">管理</div>
+          <nav class="nav-list">
+            <button class="nav-item" data-section="systems"><i data-lucide="server-cog"></i><span>系统管理</span><i class="chevron" data-lucide="chevron-down"></i></button>
+            <button class="nav-item" data-section="websites"><i data-lucide="globe-2"></i><span>网站管理</span></button>
+            <button class="nav-item" data-section="containers"><i data-lucide="box"></i><span>Docker 管理</span><b class="nav-count warning">3</b></button>
+            <button class="nav-item" data-section="market"><i data-lucide="store"></i><span>应用市场</span><i class="chevron" data-lucide="arrow-up-right"></i></button>
+            <button class="nav-item" data-section="checkup"><i data-lucide="stethoscope"></i><span>服务器体检</span></button>
+          </nav>
+
+          <div class="nav-label">安全与记录</div>
+          <nav class="nav-list">
+            <button class="nav-item" data-section="audit"><i data-lucide="file-clock"></i><span>审计与恢复</span><b class="nav-count danger">2</b></button>
+            <button class="nav-item" data-section="security"><i data-lucide="shield-check"></i><span>账户安全</span></button>
+          </nav>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="connection-row"><span class="live-dot"></span><span>控制平面在线</span><span class="mono">v2.8.4</span></div>
+          <div class="account-card">
+            <div class="avatar">YL</div>
+            <div class="account-copy"><strong>Y. Lin</strong><span>超级管理员</span></div>
+            <button class="icon-button subtle" title="账户菜单"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="mobile-brand"><div class="brand-mark"><span class="brand-letter">P</span></div><strong>PrimeOps</strong></div>
+          <div class="breadcrumb"><span>控制台</span><i data-lucide="chevron-right"></i><strong id="breadcrumb-current">主机总览</strong></div>
+          <div class="topbar-actions">
+            <div class="sync-status"><span class="live-dot"></span><span>同步正常</span><span class="mono">09:41:22</span></div>
+            <button class="icon-button mobile-menu" id="mobile-menu" title="打开导航"><i data-lucide="menu"></i></button>
+            <button class="icon-button" title="搜索"><i data-lucide="search"></i></button>
+            <button class="icon-button notification" title="通知"><i data-lucide="bell"></i><span></span></button>
+            <button class="top-avatar" title="Y. Lin">YL</button>
+          </div>
+        </header>
+
+        <div class="page-content" id="page-content">
+          <section class="page-heading">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-line"></span>全局基础设施</div>
+              <h1>主机总览</h1>
+              <p>实时掌握所有节点的运行状态与资源变化。</p>
+            </div>
+            <div class="heading-actions">
+              <button class="button button-secondary" id="refresh-button"><i data-lucide="refresh-cw"></i><span>刷新状态</span></button>
+              <button class="button button-primary" id="add-host-button"><i data-lucide="plus"></i><span>接入主机</span></button>
+            </div>
+          </section>
+
+          <section class="notice-bar">
+            <div class="notice-icon"><i data-lucide="shield-check"></i></div>
+            <div class="notice-copy"><strong>安全连接已建立</strong><span>12 台主机通过 HTTPS / Noise 加密通道同步中</span></div>
+            <button class="text-button" data-action="security">查看连接策略<i data-lucide="arrow-up-right"></i></button>
+          </section>
+
+          <section class="metric-grid">
+            <article class="metric-card teal-card">
+              <div class="metric-top"><span>在线主机</span><i data-lucide="server"></i></div>
+              <div class="metric-value">12<span class="metric-muted">/ 14</span></div>
+              <div class="metric-foot"><span class="status-pill good"><span class="pill-dot"></span>85.7% 可用</span><span class="trend positive"><i data-lucide="arrow-up-right"></i>2.4%</span></div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-top"><span>平均 CPU 使用率</span><i data-lucide="cpu"></i></div>
+              <div class="metric-value">42<span class="metric-unit">%</span></div>
+              <div class="metric-foot"><span class="status-pill neutral">低于警戒线</span><span class="trend positive"><i data-lucide="arrow-down-right"></i>6.1%</span></div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-top"><span>平均内存</span><i data-lucide="memory-stick"></i></div>
+              <div class="metric-value">68<span class="metric-unit">%</span></div>
+              <div class="metric-foot"><span class="status-pill neutral">稳定</span><span class="trend negative"><i data-lucide="arrow-up-right"></i>3.8%</span></div>
+            </article>
+            <article class="metric-card amber-card">
+              <div class="metric-top"><span>待处理事件</span><i data-lucide="triangle-alert"></i></div>
+              <div class="metric-value">05</div>
+              <div class="metric-foot"><span class="status-pill warning"><span class="pill-dot"></span>2 个高优先级</span><button class="inline-action" data-section="audit">去处理<i data-lucide="arrow-right"></i></button></div>
+            </article>
+          </section>
+
+          <section class="content-grid primary-grid">
+            <article class="panel resource-panel">
+              <div class="panel-header">
+                <div><div class="panel-kicker">资源趋势</div><h2>整体资源使用</h2></div>
+                <div class="segmented-control" role="group" aria-label="时间范围"><button class="selected">24 小时</button><button>7 天</button><button>30 天</button></div>
+              </div>
+              <div class="chart-legend"><span><i class="legend-swatch cpu"></i>CPU</span><span><i class="legend-swatch memory"></i>内存</span><span class="chart-note"><i data-lucide="clock-3"></i>每 5 分钟采样</span></div>
+              <div class="chart-wrap">
+                <div class="y-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
+                <div class="chart-area">
+                  <div class="grid-lines"><span></span><span></span><span></span><span></span><span></span></div>
+                  <svg class="chart-svg" viewBox="0 0 720 210" preserveAspectRatio="none" aria-label="CPU 与内存趋势图">
+                    <path class="chart-fill-memory" d="M0 145 C35 138, 45 156, 75 148 S122 122, 150 132 S194 108, 226 119 S276 131, 306 108 S348 88, 380 101 S425 77, 456 91 S500 72, 528 82 S568 58, 602 71 S649 44, 680 54 S706 44, 720 49 L720 210 L0 210 Z"></path>
+                    <path class="chart-line-memory" d="M0 145 C35 138, 45 156, 75 148 S122 122, 150 132 S194 108, 226 119 S276 131, 306 108 S348 88, 380 101 S425 77, 456 91 S500 72, 528 82 S568 58, 602 71 S649 44, 680 54 S706 44, 720 49"></path>
+                    <path class="chart-line-cpu" d="M0 174 C28 162, 46 178, 75 168 S117 183, 150 157 S192 148, 226 158 S275 142, 306 151 S348 122, 380 137 S425 119, 456 126 S500 110, 528 118 S566 91, 602 104 S648 83, 680 92 S706 69, 720 76"></path>
+                    <circle class="chart-point" cx="680" cy="54" r="5"></circle><circle class="chart-point cpu-point" cx="680" cy="92" r="5"></circle>
+                  </svg>
+                  <div class="x-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>现在</span></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel events-panel">
+              <div class="panel-header"><div><div class="panel-kicker">需要关注</div><h2>最新事件</h2></div><button class="icon-button compact" title="事件设置"><i data-lucide="sliders-horizontal"></i></button></div>
+              <div class="event-list">
+                <button class="event-row" data-action="event-detail"><span class="event-status danger"><i data-lucide="hard-drive"></i></span><span class="event-copy"><strong>磁盘空间不足</strong><small>hk-edge-02 · /var 使用率 91%</small></span><time>8 分钟前</time></button>
+                <button class="event-row" data-action="event-detail"><span class="event-status warning"><i data-lucide="package-check"></i></span><span class="event-copy"><strong>3 个容器可更新</strong><small>sg-prod-01 · 镜像版本有新发布</small></span><time>22 分钟前</time></button>
+                <button class="event-row" data-action="event-detail"><span class="event-status info"><i data-lucide="key-round"></i></span><span class="event-copy"><strong>SSH 防御策略已变更</strong><small>本机 · 由 Y. Lin 执行</small></span><time>1 小时前</time></button>
+                <button class="event-row" data-action="event-detail"><span class="event-status success"><i data-lucide="circle-check"></i></span><span class="event-copy"><strong>系统更新完成</strong><small>tokyo-app-01 · 12 个软件包</small></span><time>3 小时前</time></button>
+              </div>
+              <button class="panel-link" data-section="audit">查看全部事件<i data-lucide="arrow-up-right"></i></button>
+            </article>
+          </section>
+
+          <section class="content-grid secondary-grid">
+            <article class="panel host-panel">
+              <div class="panel-header host-panel-header"><div><div class="panel-kicker">节点列表</div><h2>主机状态</h2></div><div class="host-tools"><button class="filter-button" id="host-filter"><i data-lucide="list-filter"></i>全部状态<i data-lucide="chevron-down"></i></button><button class="icon-button compact" title="更多主机操作"><i data-lucide="more-horizontal"></i></button></div></div>
+              <div class="table-scroll"><table><thead><tr><th>主机</th><th>地区 / IP</th><th>CPU</th><th>内存</th><th>磁盘</th><th>状态</th><th></th></tr></thead><tbody>
+                <tr class="host-row" data-host="本机"><td><div class="host-name"><span class="host-indicator local"></span><span><strong>本机</strong><small>kp-control-plane</small></span><b class="local-tag">LOCAL</b></div></td><td><span class="region">新加坡</span><span class="mono">103.28.14.8</span></td><td><div class="mini-meter"><span style="width:31%"></span></div><span class="table-number">31%</span></td><td><div class="mini-meter memory"><span style="width:64%"></span></div><span class="table-number">64%</span></td><td><div class="mini-meter disk"><span style="width:52%"></span></div><span class="table-number">52%</span></td><td><span class="table-status online"><i data-lucide="check"></i>运行中</span></td><td><button class="row-menu" title="主机操作"><i data-lucide="more-horizontal"></i></button></td></tr>
+                <tr class="host-row" data-host="sg-prod-01"><td><div class="host-name"><span class="host-indicator"></span><span><strong>sg-prod-01</strong><small>web-cluster / 4 containers</small></span></div></td><td><span class="region">新加坡</span><span class="mono">103.75.116.21</span></td><td><div class="mini-meter"><span style="width:48%"></span></div><span class="table-number">48%</span></td><td><div class="mini-meter memory"><span style="width:71%"></span></div><span class="table-number">71%</span></td><td><div class="mini-meter disk"><span style="width:76%"></span></div><span class="table-number">76%</span></td><td><span class="table-status online"><i data-lucide="check"></i>运行中</span></td><td><button class="row-menu" title="主机操作"><i data-lucide="more-horizontal"></i></button></td></tr>
+                <tr class="host-row" data-host="hk-edge-02"><td><div class="host-name"><span class="host-indicator warn"></span><span><strong>hk-edge-02</strong><small>edge / 2 containers</small></span></div></td><td><span class="region">中国香港</span><span class="mono">45.113.12.7</span></td><td><div class="mini-meter"><span style="width:62%"></span></div><span class="table-number">62%</span></td><td><div class="mini-meter memory"><span style="width:83%"></span></div><span class="table-number">83%</span></td><td><div class="mini-meter danger"><span style="width:91%"></span></div><span class="table-number danger-text">91%</span></td><td><span class="table-status warning"><i data-lucide="alert-triangle"></i>需关注</span></td><td><button class="row-menu" title="主机操作"><i data-lucide="more-horizontal"></i></button></td></tr>
+              </tbody></table></div>
+              <div class="table-footer"><span>显示 3 / 14 台主机</span><button class="panel-link" data-section="cluster">进入集群监控<i data-lucide="arrow-right"></i></button></div>
+            </article>
+
+            <article class="panel ai-card">
+              <div class="ai-orbit"><i data-lucide="sparkles"></i></div>
+              <div class="panel-kicker">PrimeOps intelligence</div><h2>让 AI 帮你看住服务器</h2><p>通过固定工具读取真实状态，每一次写操作都由你确认。</p>
+              <div class="ai-suggestion"><span class="suggestion-icon"><i data-lucide="scan-search"></i></span><div><strong>建议运行一次全面体检</strong><small>最近一次体检：6 天前</small></div><i class="arrow-icon" data-lucide="arrow-up-right"></i></div>
+              <button class="button button-dark" id="open-ai-button"><i data-lucide="message-circle"></i>打开 AI 工作台</button>
+            </article>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"><i data-lucide="check-circle-2"></i><span></span></div>
+    <div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header"><div><div class="panel-kicker">安全接入</div><h2 id="modal-title">接入一台 PrimeOps 主机</h2></div><button class="icon-button compact" id="close-modal" title="关闭"><i data-lucide="x"></i></button></div>
+        <p class="modal-intro">通过一次性授权码建立 HTTPS 或 Noise 加密连接。授权码只会显示一次。</p>
+        <label class="input-label">主机 IP + 端口<input class="text-input" value="" placeholder="例如 103.75.116.21:8443" /></label>
+        <div class="connection-options"><button class="connection-option selected"><i data-lucide="lock-keyhole"></i><span><strong>HTTPS</strong><small>已配置域名或可信证书</small></span><i class="check-icon" data-lucide="check"></i></button><button class="connection-option"><i data-lucide="radio-tower"></i><span><strong>Noise</strong><small>无域名公网加密连接</small></span></button></div>
+        <div class="auth-result" id="auth-result" hidden><div class="auth-result-head"><span class="panel-kicker">一次性授权码</span><span class="soft-badge green-badge">仅显示一次</span></div><strong id="auth-code">PO-000000</strong><p id="auth-result-copy">请在目标主机的 PrimeOps 节点中确认接入。</p></div>
+        <div class="modal-actions"><button class="button button-secondary" id="cancel-modal">取消</button><button class="button button-primary" id="continue-modal">生成授权码<i data-lucide="arrow-right"></i></button></div>
+      </div>
+    </div>
+    <div class="confirm-backdrop" id="confirm-backdrop" aria-hidden="true">
+      <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="confirm-icon"><i data-lucide="shield-check"></i></div>
+        <div class="confirm-copy"><div class="panel-kicker">管理员确认</div><h2 id="confirm-title">确认这项变更？</h2><p id="confirm-description">PrimeOps 会在执行前校验配置并记录审计日志。</p></div>
+        <div class="confirm-actions"><button class="button button-secondary" id="cancel-confirm">取消</button><button class="button button-primary" id="approve-confirm">确认并加入执行队列</button></div>
+      </div>
+    </div>
+    <button class="floating-ai-button" id="floating-ai-button" title="打开 AI 运维助手" aria-label="打开 AI 运维助手"><i data-lucide="sparkles"></i><span>AI</span></button>
+    <div class="ai-drawer-backdrop" id="ai-drawer-backdrop" aria-hidden="true">
+      <aside class="ai-drawer" aria-label="AI 运维助手">
+        <header class="ai-drawer-header"><div class="ai-drawer-title"><span class="drawer-spark"><i data-lucide="sparkles"></i></span><div><strong>AI 运维助手</strong><small>固定工具 · 只读诊断</small></div></div><div class="drawer-actions"><button class="icon-button compact" id="ai-drawer-settings" title="AI 设置"><i data-lucide="settings-2"></i></button><button class="icon-button compact" id="ai-drawer-close" title="关闭"><i data-lucide="x"></i></button></div></header>
+        <div class="ai-drawer-toolbar"><label>当前模型<select id="drawer-model-select" class="select-input"><option>DeepSeek · deepseek-chat</option><option>智谱 GLM · glm-4.5</option><option>通义千问 · qwen-plus</option><option>Kimi · moonshot-v1-8k</option><option>自定义兼容模型</option></select></label><span class="drawer-scope"><span class="live-dot"></span>本机 + hk-edge-02</span></div>
+        <div class="drawer-chat" id="drawer-chat"><div class="drawer-welcome"><span class="drawer-welcome-icon"><i data-lucide="scan-search"></i></span><h2>今天想诊断哪台主机？</h2><p>我可以读取 CPU、内存、磁盘、网络、服务和容器状态，并解释异常原因。</p><div class="drawer-quick-actions"><button data-drawer-action="diagnose"><i data-lucide="stethoscope"></i>诊断当前主机</button><button data-drawer-action="disk-check"><i data-lucide="hard-drive"></i>检查磁盘</button><button data-drawer-action="service-check"><i data-lucide="activity"></i>查看服务</button></div></div><div class="drawer-message assistant"><span class="drawer-message-icon"><i data-lucide="sparkles"></i></span><div><p>我已准备好读取固定 PrimeOps 工具。所有配置写入、重启和删除操作都会先请求你的确认。</p><small><i data-lucide="lock"></i>不会自动执行写操作</small></div></div></div>
+        <div class="drawer-composer"><input id="drawer-input" placeholder="询问主机状态或描述一个异常…" /><button id="drawer-send" class="drawer-send" title="发送"><i data-lucide="arrow-up"></i></button></div><div class="drawer-footer"><span><i data-lucide="shield-check"></i>本地会话</span><button data-drawer-action="clear-chat">清空会话</button></div>
+      </aside>
+    </div>
+    <script src="app.js"></script>
+    <script src="views.js"></script>
+  </body>
+</html>
