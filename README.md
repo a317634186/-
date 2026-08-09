@@ -21,3 +21,14 @@ node server.cjs
 - Port：使用平台提供的 `PORT` 环境变量，未设置时默认 `4173`
 
 当前页面中的主机状态、AI 工具结果和任务队列是演示数据。真实 Linux 主机控制、Provider API 调用、Agent 通信和加密密钥存储需要接入后端服务后才会执行真实操作。
+
+## Linux 菜单部署
+
+在 Linux 服务器上执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aa317634186/-PrimeOps/main/primeops.sh -o primeops.sh
+sudo bash primeops.sh
+```
+
+脚本提供安装、更新、卸载、域名反向代理以及 IP + 端口防火墙规则管理。安装会创建 `primeops.service`，并使用系统 Node.js 18+ 运行面板。
