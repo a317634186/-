@@ -64,7 +64,7 @@ install_packages() {
     say "请先安装 Node.js 18+、Git、Nginx 和 UFW 后重新运行。"
     return 1
   fi
-  say "正在安装依赖：${missing[*]}"
+  say "· 正在安装依赖：${missing[*]}"
   apt-get update
   apt-get install -y "${missing[@]}"
   if ! command_exists node || (( "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || printf '0')" < 18 )); then
@@ -129,16 +129,49 @@ clone_or_update() {
   fi
 }
 
+public_ip() {
+  curl -fsS -m 5 -4 https://api.ipify.org 2>/dev/null || curl -fsS -m 5 -4 ifconfig.me 2>/dev/null || true
+}
+
+allow_firewall_if_needed() {
+  if command_exists ufw && ufw status 2>/dev/null | grep -qi 'status: active'; then
+    ufw allow "${PORT}/tcp" >/dev/null 2>&1 || true
+    say "· 已自动放行防火墙 TCP ${PORT}"
+  fi
+}
+
+print_success() {
+  local ip
+  ip="$(public_ip)"
+  say ''
+  say '=================================================='
+  say "  ${APP_TITLE} 安装成功！"
+  if [[ -n "${ip}" ]]; then
+    say "  在浏览器打开: http://${ip}:${PORT}"
+  else
+    say "  在浏览器打开: http://你的服务器IP:${PORT}"
+  fi
+  say ''
+  say '  打不开？检查云服务商控制台的「安全组」，'
+  say "  放行 TCP ${PORT} 端口即可。"
+  say ''
+  say '  以后管理这台面板，运行:'
+  say "      sudo bash ${INSTALL_DIR}/primeops.sh"
+  say '=================================================='
+}
+
 install_app() {
   if is_installed; then
-    say "${APP_NAME} 已安装，请选择更新或卸载。"
+    say "${APP_NAME} 已安装，无需重复安装。"
+    say "再次管理请运行: sudo bash ${INSTALL_DIR}/primeops.sh"
     return
   fi
   install_packages
   clone_or_update
   create_service_user
   write_service
-  say "安装完成：${APP_TITLE} 已启动，访问 http://服务器IP:${PORT}"
+  allow_firewall_if_needed
+  print_success
 }
 
 update_app() {
@@ -207,6 +240,22 @@ delete_domain() {
   if nginx -t; then systemctl reload nginx; say "域名访问已删除：${domain}"; else say 'Nginx 配置校验失败，请检查现有配置。'; fi
 }
 
+add_https() {
+  local domain
+  read -r -p '请输入域名：' domain
+  if ! valid_domain "${domain}"; then say '域名格式不正确。'; return; fi
+  if ! command_exists certbot; then
+    say 'certbot 未安装，正在安装…'
+    apt-get update && apt-get install -y certbot python3-certbot-nginx || { say 'certbot 安装失败，请手动安装后重试。'; return; }
+  fi
+  if [[ ! -f "$(nginx_config_path "${domain}")" ]]; then
+    say "未找到 ${domain} 的 Nginx 配置，请先添加域名访问。"
+    return
+  fi
+  certbot --nginx -d "${domain}"
+  say "HTTPS 证书配置完成：https://${domain}"
+}
+
 allow_port() {
   local port
   read -r -p "请输入允许访问的端口 [${PORT}]：" port
@@ -225,6 +274,18 @@ block_port() {
   say "已阻止公网访问 TCP ${port}。"
 }
 
+view_status() {
+  if ! is_installed; then
+    say "${APP_NAME} 未安装。"
+    return
+  fi
+  say "服务状态："
+  systemctl status "${SERVICE_NAME}" --no-pager -l
+  say
+  say "最近日志（最后 20 行）："
+  journalctl -u "${SERVICE_NAME}" -n 20 --no-pager
+}
+
 uninstall_app() {
   if ! is_installed; then say "${APP_NAME} 未安装。"; return; fi
   say "将停止服务并删除 ${INSTALL_DIR}。Nginx 域名配置不会自动删除。"
@@ -238,40 +299,11 @@ uninstall_app() {
   say '卸载完成。'
 }
 
-add_https() {
-  local domain cert_dir
-  read -r -p '请输入域名：' domain
-  if ! valid_domain "${domain}"; then say '域名格式不正确。'; return; fi
-  if ! command_exists certbot; then
-    say 'certbot 未安装，正在安装…'
-    apt-get update && apt-get install -y certbot python3-certbot-nginx || { say 'certbot 安装失败，请手动安装后重试。'; return; }
-  fi
-  if [[ ! -f "$(nginx_config_path "${domain}")" ]]; then
-    say "未找到 ${domain} 的 Nginx 配置，请先添加域名访问。"
-    return
-  fi
-  certbot --nginx -d "${domain}"
-  say "HTTPS 证书配置完成：https://${domain}"
-}
-
-view_status() {
-  if ! is_installed; then
-    say "${APP_NAME} 未安装。"
-    return
-  fi
-  say "服务状态："
-  systemctl status "${SERVICE_NAME}" --no-pager -l
-  say
-  say "最近日志（最后 20 行）："
-  journalctl -u "${SERVICE_NAME}" -n 20 --no-pager
-}
-
 menu() {
   while true; do
     clear
-    say "${APP_NAME}"
-    say 'PrimeOps 是一款面向 Linux 服务器的基础设施管理面板'
-    say "项目地址: ${REPO_URL}"
+    say "${APP_NAME} · 管理菜单"
+    say "首次使用？输入 1 回车即可完成安装"
     say
     service_state
     say
@@ -303,5 +335,44 @@ menu() {
   done
 }
 
-require_root
-menu
+usage() {
+  say "用法："
+  say "  sudo bash primeops.sh             打开管理菜单"
+  say "  sudo bash primeops.sh install     直接安装（不进菜单）"
+  say "  sudo bash primeops.sh update      更新到最新版"
+  say "  sudo bash primeops.sh status      查看服务状态和日志"
+}
+
+main() {
+  if [[ "${1:-}" == "help" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    usage
+    return
+  fi
+  require_root
+  case "${1:-menu}" in
+    install|-i|--install)
+      install_app </dev/null
+      ;;
+    update|-u|--update)
+      update_app </dev/null
+      ;;
+    status|-s|--status)
+      view_status </dev/null
+      ;;
+    menu)
+      # curl ... | sudo bash 时没有交互终端，直接进入一键安装
+      if [[ ! -t 0 ]]; then
+        install_app </dev/null
+      else
+        menu
+      fi
+      ;;
+    *)
+      say "未知选项：${1}"
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
