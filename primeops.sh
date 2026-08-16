@@ -29,6 +29,11 @@ is_installed() {
 service_state() {
   if is_installed && systemctl is-active --quiet "${SERVICE_NAME}"; then
     say "${APP_NAME} 已安装 · 服务运行中 · 端口 ${PORT}"
+    local ip
+    ip="$(public_ip)"
+    if [[ -n "${ip}" ]]; then
+      say "面板地址: http://${ip}:${PORT}"
+    fi
   elif is_installed; then
     say "${APP_NAME} 已安装 · 服务未运行"
   else
@@ -129,8 +134,11 @@ clone_or_update() {
   fi
 }
 
+CACHED_IP=""
 public_ip() {
-  curl -fsS -m 5 -4 https://api.ipify.org 2>/dev/null || curl -fsS -m 5 -4 ifconfig.me 2>/dev/null || true
+  if [[ -n "${CACHED_IP}" ]]; then printf '%s' "${CACHED_IP}"; return; fi
+  CACHED_IP="$(curl -fsS -m 4 -4 https://api.ipify.org 2>/dev/null || curl -fsS -m 4 -4 ifconfig.me 2>/dev/null || true)"
+  printf '%s' "${CACHED_IP}"
 }
 
 allow_firewall_if_needed() {

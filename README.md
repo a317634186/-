@@ -2,25 +2,55 @@
 
 PrimeOps 是一个面向 Linux 服务器管理、集群监控和 AI 运维助手的控制台面板。
 
-## 🚀 一键安装（最简单）
+## 🚀 安装（最简单）
 
 **第 1 步**：登录你的 Linux 服务器（Ubuntu / Debian 系统）。
 
-**第 2 步**：把下面这一整行复制进终端，按回车，然后等待完成：
+**第 2 步**：把下面这一整行复制进终端，按回车：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/a317634186/-/main/primeops.sh -o primeops.sh && sudo bash primeops.sh
+```
+
+如果没有 `curl`，用这个代替：
+
+```bash
+wget -qO primeops.sh https://raw.githubusercontent.com/a317634186/-/main/primeops.sh && sudo bash primeops.sh
+```
+
+**第 3 步**：会出现中文管理菜单，输入 `1` 回车就开始安装：
+
+```
+primeops · 管理菜单
+首次使用？输入 1 回车即可完成安装
+
+primeops 未安装
+
+------------------------
+1. 安装              2. 更新            3. 卸载
+4. 查看服务状态
+------------------------
+5. 添加域名访问      6. 删除域名访问
+7. 申请 HTTPS 证书
+------------------------
+8. 允许端口访问       9. 阻止端口访问
+------------------------
+0. 退出
+------------------------
+请输入你的选择:
+```
+
+安装完成后菜单顶部会直接显示**面板地址**（形如 `http://1.2.3.4:4173`），复制到浏览器打开即可。
+
+> 以后想再次打开这个菜单，在服务器上运行：`sudo bash /opt/primeops/primeops.sh`
+
+### 不想选菜单？全自动一键安装
+
+如果不想看菜单，直接静默安装，用这个命令：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/a317634186/-/main/primeops.sh | sudo bash
 ```
-
-如果你的服务器没有 `curl`，用这个代替：
-
-```bash
-wget -qO- https://raw.githubusercontent.com/a317634186/-/main/primeops.sh | sudo bash
-```
-
-**第 3 步**：看到「安装成功」后，在浏览器打开脚本最后显示的地址（形如 `http://你的服务器IP:4173`）就能用了。
-
-> 脚本会自动完成：安装 Node.js / Nginx / UFW → 下载 PrimeOps → 创建开机自启服务 → 放行防火墙端口。全程无需任何操作。
 
 ### 打不开怎么办？
 
