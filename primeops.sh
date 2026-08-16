@@ -238,6 +238,34 @@ uninstall_app() {
   say '卸载完成。'
 }
 
+add_https() {
+  local domain cert_dir
+  read -r -p '请输入域名：' domain
+  if ! valid_domain "${domain}"; then say '域名格式不正确。'; return; fi
+  if ! command_exists certbot; then
+    say 'certbot 未安装，正在安装…'
+    apt-get update && apt-get install -y certbot python3-certbot-nginx || { say 'certbot 安装失败，请手动安装后重试。'; return; }
+  fi
+  if [[ ! -f "$(nginx_config_path "${domain}")" ]]; then
+    say "未找到 ${domain} 的 Nginx 配置，请先添加域名访问。"
+    return
+  fi
+  certbot --nginx -d "${domain}"
+  say "HTTPS 证书配置完成：https://${domain}"
+}
+
+view_status() {
+  if ! is_installed; then
+    say "${APP_NAME} 未安装。"
+    return
+  fi
+  say "服务状态："
+  systemctl status "${SERVICE_NAME}" --no-pager -l
+  say
+  say "最近日志（最后 20 行）："
+  journalctl -u "${SERVICE_NAME}" -n 20 --no-pager
+}
+
 menu() {
   while true; do
     clear
@@ -249,21 +277,26 @@ menu() {
     say
     say '------------------------'
     say '1. 安装              2. 更新            3. 卸载'
+    say '4. 查看服务状态'
     say '------------------------'
     say '5. 添加域名访问      6. 删除域名访问'
-    say '7. 允许IP+端口访问   8. 阻止IP+端口访问'
+    say '7. 申请 HTTPS 证书'
     say '------------------------'
-    say '0. 返回上一级选单'
+    say '8. 允许端口访问       9. 阻止端口访问'
+    say '------------------------'
+    say '0. 退出'
     say '------------------------'
     read -r -p '请输入你的选择: ' choice
     case "${choice}" in
       1) install_app; pause_menu ;;
       2) update_app; pause_menu ;;
       3) uninstall_app; pause_menu ;;
+      4) view_status; pause_menu ;;
       5) add_domain; pause_menu ;;
       6) delete_domain; pause_menu ;;
-      7) allow_port; pause_menu ;;
-      8) block_port; pause_menu ;;
+      7) add_https; pause_menu ;;
+      8) allow_port; pause_menu ;;
+      9) block_port; pause_menu ;;
       0) exit 0 ;;
       *) say '无效选项，请重新选择。'; sleep 1 ;;
     esac

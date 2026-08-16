@@ -225,21 +225,7 @@ document.querySelectorAll('[data-drawer-action]').forEach(button => button.addEv
 }));
 document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeAiDrawer(); closeWriteConfirmation(); } });
 
-function applyBranding() {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node;
-  while ((node = walker.nextNode())) node.nodeValue = node.nodeValue.replaceAll('KPanel', 'PrimeOps');
-  document.querySelectorAll('[title], [aria-label], [placeholder]').forEach(element => {
-    ['title', 'aria-label', 'placeholder'].forEach(attribute => {
-      const value = element.getAttribute(attribute);
-      if (value?.includes('KPanel')) element.setAttribute(attribute, value.replaceAll('KPanel', 'PrimeOps'));
-    });
-  });
-  document.title = document.title.replaceAll('KPanel', 'PrimeOps');
-}
-
 lucide.createIcons();
-applyBranding();
 
 document.querySelectorAll('button').forEach(button => button.addEventListener('pointerdown', () => {
   button.classList.remove('button-press');
