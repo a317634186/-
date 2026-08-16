@@ -22,8 +22,8 @@ PrimeOps 是一个面向 Linux 服务器管理、集群监控和 AI 运维助手
 需要 Node.js 18 或更高版本：
 
 ```bash
-git clone https://github.com/aa317634186/-PrimeOps.git
-cd -PrimeOps
+git clone https://github.com/a317634186/-.git
+cd -
 node server.cjs
 ```
 
@@ -50,7 +50,7 @@ node server.cjs
 在 Linux 服务器上执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aa317634186/-PrimeOps/main/primeops.sh -o primeops.sh
+curl -fsSL https://raw.githubusercontent.com/a317634186/-/main/primeops.sh -o primeops.sh
 sudo bash primeops.sh
 ```
 

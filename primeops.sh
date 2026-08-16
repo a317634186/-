@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 APP_NAME="primeops"
 APP_TITLE="PrimeOps"
-REPO_URL="${PRIMEOPS_REPO_URL:-https://github.com/aa317634186/-PrimeOps.git}"
+REPO_URL="${PRIMEOPS_REPO_URL:-https://github.com/a317634186/-.git}"
 INSTALL_DIR="${PRIMEOPS_DIR:-/opt/primeops}"
 SERVICE_NAME="primeops"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
