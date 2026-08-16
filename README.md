@@ -59,18 +59,20 @@ curl -fsSL https://raw.githubusercontent.com/a317634186/-/main/primeops.sh | sud
 
 ## 🔧 日常管理
 
-在服务器上运行以下命令打开管理菜单（安装、更新、卸载、域名、HTTPS、防火墙都在里面）：
+安装完成后，服务器上**直接输入 `primeops`**（或 `PrimeOps`）即可打开管理菜单，不用记任何长命令：
+
+```bash
+primeops          # 打开管理菜单（安装 / 更新 / 卸载 / 域名 / HTTPS / 防火墙）
+primeops update   # 直接更新，不进菜单
+primeops status   # 查看服务状态和日志
+```
+
+> 刚安装完需要重新登录 SSH（或运行 `source /etc/profile.d/primeops.sh`）快捷命令才会生效。
+
+也可以用完整路径打开菜单：
 
 ```bash
 sudo bash /opt/primeops/primeops.sh
-```
-
-也可以直接用参数，不进菜单：
-
-```bash
-sudo bash /opt/primeops/primeops.sh install   # 安装
-sudo bash /opt/primeops/primeops.sh update    # 更新
-sudo bash /opt/primeops/primeops.sh status    # 查看状态和日志
 ```
 
 服务本身的常用命令：

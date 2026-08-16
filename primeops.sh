@@ -142,6 +142,15 @@ grant_docker_access() {
   fi
 }
 
+install_cli_command() {
+  printf '# PrimeOps 快捷命令：输入 primeops 打开管理菜单\nprimeops() { sudo bash /opt/primeops/primeops.sh "$@"; }\nalias PrimeOps=primeops\n' > /etc/profile.d/primeops.sh
+  local root_home
+  root_home="$(getent passwd root 2>/dev/null | cut -d: -f6)"
+  if [[ -n "${root_home}" && -f "${root_home}/.bashrc" ]] && ! grep -q 'primeops()' "${root_home}/.bashrc"; then
+    printf '\n# PrimeOps 快捷命令\nprimeops() { sudo bash /opt/primeops/primeops.sh "$@"; }\n' >> "${root_home}/.bashrc"
+  fi
+}
+
 clone_or_update() {
   if [[ -d "${INSTALL_DIR}/.git" ]]; then
     git -C "${INSTALL_DIR}" fetch --all --prune
@@ -188,8 +197,10 @@ print_success() {
   say "  放行 TCP ${PORT} 端口即可。"
   say ''
   say '  忘记密钥: cat /etc/primeops/token'
-  say '  以后管理这台面板，运行:'
-  say "      sudo bash ${INSTALL_DIR}/primeops.sh"
+  say ''
+  say '  ⚡ 快捷命令已装好：以后直接输入 primeops'
+  say '     即可打开管理菜单（重新登录后生效，'
+  say '      或先运行 source /etc/profile.d/primeops.sh）'
   say '=================================================='
 }
 
@@ -204,6 +215,7 @@ install_app() {
   create_service_user
   write_service
   grant_docker_access
+  install_cli_command
   allow_firewall_if_needed
   print_success
 }
@@ -219,6 +231,7 @@ update_app() {
   git -C "${INSTALL_DIR}" pull --ff-only
   create_service_user
   grant_docker_access
+  install_cli_command
   systemctl restart "${SERVICE_NAME}"
   say "更新完成：$(git -C "${INSTALL_DIR}" rev-parse --short HEAD)"
 }
