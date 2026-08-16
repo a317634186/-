@@ -89,10 +89,21 @@ create_service_user() {
   chown -R "${APP_NAME}:${APP_NAME}" "${INSTALL_DIR}"
 }
 
+generate_token() {
+  if command_exists openssl; then
+    openssl rand -hex 16
+  else
+    tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 32
+  fi
+}
+
 write_service() {
-  local node_bin
+  local node_bin token
   node_bin="$(node_path)"
+  token="$(generate_token)"
   mkdir -p "${STATE_DIR}"
+  printf '%s\n' "${token}" > "${STATE_DIR}/token"
+  chmod 600 "${STATE_DIR}/token"
   cat > "${SERVICE_FILE}" <<EOF
 [Unit]
 Description=${APP_TITLE} Linux operations console
@@ -107,6 +118,7 @@ WorkingDirectory=${INSTALL_DIR}
 Environment=NODE_ENV=production
 Environment=HOST=0.0.0.0
 Environment=PORT=${PORT}
+Environment=PRIMEOPS_TOKEN=${token}
 ExecStart=${node_bin} ${INSTALL_DIR}/server.cjs
 Restart=on-failure
 RestartSec=3
@@ -118,6 +130,16 @@ WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
   systemctl enable --now "${SERVICE_NAME}"
+}
+
+grant_docker_access() {
+  if command_exists docker && id -u "${APP_NAME}" >/dev/null 2>&1; then
+    if ! id -nG "${APP_NAME}" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+      usermod -aG docker "${APP_NAME}"
+      systemctl restart "${SERVICE_NAME}"
+      say "· 已授权面板读取 Docker（加入 docker 组）"
+    fi
+  fi
 }
 
 clone_or_update() {
@@ -149,8 +171,9 @@ allow_firewall_if_needed() {
 }
 
 print_success() {
-  local ip
+  local ip token
   ip="$(public_ip)"
+  token="$(cat "${STATE_DIR}/token" 2>/dev/null || printf '未生成')"
   say ''
   say '=================================================='
   say "  ${APP_TITLE} 安装成功！"
@@ -159,10 +182,12 @@ print_success() {
   else
     say "  在浏览器打开: http://你的服务器IP:${PORT}"
   fi
+  say "  访问密钥（首次打开时输入）: ${token}"
   say ''
   say '  打不开？检查云服务商控制台的「安全组」，'
   say "  放行 TCP ${PORT} 端口即可。"
   say ''
+  say '  忘记密钥: cat /etc/primeops/token'
   say '  以后管理这台面板，运行:'
   say "      sudo bash ${INSTALL_DIR}/primeops.sh"
   say '=================================================='
@@ -178,6 +203,7 @@ install_app() {
   clone_or_update
   create_service_user
   write_service
+  grant_docker_access
   allow_firewall_if_needed
   print_success
 }
@@ -192,6 +218,7 @@ update_app() {
   git -C "${INSTALL_DIR}" fetch --all --prune
   git -C "${INSTALL_DIR}" pull --ff-only
   create_service_user
+  grant_docker_access
   systemctl restart "${SERVICE_NAME}"
   say "更新完成：$(git -C "${INSTALL_DIR}" rev-parse --short HEAD)"
 }

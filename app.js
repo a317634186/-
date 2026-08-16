@@ -241,3 +241,217 @@ const bootTimer = setInterval(() => {
   if (bootValue === 9) clearInterval(bootTimer);
 }, 110);
 setTimeout(() => bootScreen?.remove(), 1900);
+
+// ---------- 真实数据接入 ----------
+
+const primeOpsApi = {
+  token: localStorage.getItem('primeops_token') || '',
+  async request(path, options = {}) {
+    const headers = Object.assign({}, options.headers || {});
+    if (this.token) headers['X-PrimeOps-Token'] = this.token;
+    if (options.body) headers['Content-Type'] = 'application/json';
+    const response = await fetch(path, Object.assign({}, options, { headers }));
+    if (response.status === 401) {
+      const token = window.prompt('此面板已启用访问密钥保护，请输入访问密钥：');
+      if (token) {
+        this.token = token;
+        localStorage.setItem('primeops_token', token);
+        return this.request(path, options);
+      }
+      throw new Error('未授权');
+    }
+    return response;
+  },
+  async json(path, options) {
+    const response = await this.request(path, options);
+    return response.json();
+  }
+};
+window.primeOpsApi = primeOpsApi;
+
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) { value /= 1024; index += 1; }
+  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days} 天 ${hours} 小时`;
+  if (hours > 0) return `${hours} 小时 ${minutes} 分`;
+  return `${minutes} 分钟`;
+}
+
+function pad2(value) { return String(value).padStart(2, '0'); }
+
+function chartPath(samples, key) {
+  if (!samples || samples.length < 2) return null;
+  const topPad = 15;
+  const bottomPad = 195;
+  const step = 720 / (samples.length - 1);
+  let d = '';
+  samples.forEach((sample, index) => {
+    const value = Math.max(0, Math.min(100, sample[key] ?? 0));
+    const x = (index * step).toFixed(1);
+    const y = (bottomPad - (value / 100) * (bottomPad - topPad)).toFixed(1);
+    d += `${index === 0 ? 'M' : 'L'}${x} ${y} `;
+  });
+  return d.trim();
+}
+
+function chartPoint(samples, key) {
+  if (!samples || samples.length < 2) return null;
+  const value = Math.max(0, Math.min(100, samples[samples.length - 1][key] ?? 0));
+  return { x: 720, y: (195 - (value / 100) * 180).toFixed(1) };
+}
+
+async function applyRealOverview() {
+  const page = document.getElementById('page-content');
+  if (!page || !page.querySelector('.metric-grid')) return;
+  let data;
+  try {
+    data = await primeOpsApi.json('/api/system');
+  } catch {
+    return;
+  }
+
+  const cards = page.querySelectorAll('.metric-card');
+  if (cards[0]) {
+    cards[0].querySelector('.metric-value').innerHTML = '1<span class="metric-muted">/ 1</span>';
+    const pill = cards[0].querySelector('.status-pill');
+    if (pill) pill.innerHTML = '<span class="pill-dot"></span>本机在线';
+    const trend = cards[0].querySelector('.trend');
+    if (trend) trend.innerHTML = `<i data-lucide="check"></i>${data.cpu.cores} 核`;
+  }
+  if (cards[1]) {
+    cards[1].querySelector('.metric-value').innerHTML = `${data.cpu.percent}<span class="metric-unit">%</span>`;
+    const pill = cards[1].querySelector('.status-pill');
+    if (pill) pill.textContent = data.cpu.percent > 85 ? '高于警戒线' : '低于警戒线';
+    const trend = cards[1].querySelector('.trend');
+    if (trend) trend.textContent = data.loadavg[0] ? `负载 ${data.loadavg[0]}` : '实时';
+  }
+  if (cards[2]) {
+    cards[2].querySelector('.metric-value').innerHTML = `${data.memory.percent}<span class="metric-unit">%</span>`;
+    const pill = cards[2].querySelector('.status-pill');
+    if (pill) pill.textContent = data.memory.percent > 90 ? '内存紧张' : '稳定';
+    const trend = cards[2].querySelector('.trend');
+    if (trend) trend.textContent = `${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`;
+  }
+  if (cards[3]) {
+    const label = cards[3].querySelector('.metric-top span');
+    if (label) label.textContent = '磁盘使用率';
+    const icon = cards[3].querySelector('.metric-top i, .metric-top svg');
+    if (icon) icon.setAttribute('data-lucide', 'hard-drive');
+    cards[3].querySelector('.metric-value').textContent = data.disk ? String(data.disk.percent).padStart(2, '0') : '—';
+    const pill = cards[3].querySelector('.status-pill');
+    if (pill) pill.textContent = data.disk ? `已用 ${formatBytes(data.disk.used)}` : '本机无 df 信息';
+    const action = cards[3].querySelector('.inline-action');
+    if (action) action.outerHTML = data.disk ? `<span class="mono" style="font-size:11px;color:#7d9c8f">${data.disk.mount}</span>` : '';
+  }
+
+  const notice = page.querySelector('.notice-copy span');
+  if (notice) notice.textContent = '本机实时数据已连接 · CPU / 内存 / 磁盘 / Docker 真实读取';
+
+  const eventsKicker = page.querySelector('.events-panel .panel-kicker');
+  if (eventsKicker) eventsKicker.textContent = '事件流 · 待接入后端';
+
+  page.querySelectorAll('.host-row').forEach(row => {
+    if (row.dataset.host !== '本机') row.remove();
+  });
+  const localRow = page.querySelector('.host-row[data-host="本机"]');
+  if (localRow) {
+    const name = localRow.querySelector('.host-name strong + small, .host-name span small');
+    if (name) name.textContent = data.hostname;
+    const cells = localRow.children;
+    if (cells[1]) {
+      const region = cells[1].querySelector('.region');
+      const ip = cells[1].querySelector('.mono');
+      if (region) region.textContent = '本机';
+      if (ip) ip.textContent = data.ip;
+    }
+    const meters = [
+      [cells[2], data.cpu.percent],
+      [cells[3], data.memory.percent],
+      [cells[4], data.disk ? data.disk.percent : null]
+    ];
+    meters.forEach(([cell, percent]) => {
+      if (!cell) return;
+      const bar = cell.querySelector('.mini-meter span');
+      const number = cell.querySelector('.table-number');
+      if (bar && percent !== null) bar.style.width = `${percent}%`;
+      if (number) {
+        number.textContent = percent === null ? '—' : `${percent}%`;
+        number.classList.toggle('danger-text', percent !== null && percent > 85);
+      }
+      const meter = cell.querySelector('.mini-meter');
+      if (meter) meter.classList.toggle('danger', percent !== null && percent > 85);
+    });
+  }
+  const footer = page.querySelector('.table-footer span');
+  if (footer) footer.textContent = '本机节点 · 实时数据';
+
+  const clusterBadge = document.querySelector('.nav-item[data-section="cluster"] .nav-count');
+  if (clusterBadge) clusterBadge.textContent = '1';
+
+  try {
+    const history = await primeOpsApi.json('/api/history');
+    const samples = history.samples || [];
+    const cpuLine = chartPath(samples, 'cpu');
+    const memLine = chartPath(samples, 'mem');
+    if (cpuLine && memLine) {
+      const setCpu = page.querySelector('.chart-line-cpu');
+      const setMem = page.querySelector('.chart-line-memory');
+      const setFill = page.querySelector('.chart-fill-memory');
+      if (setCpu) setCpu.setAttribute('d', cpuLine);
+      if (setMem) setMem.setAttribute('d', memLine);
+      if (setFill) setFill.setAttribute('d', `${memLine} L720 210 L0 210 Z`);
+      const points = page.querySelectorAll('.chart-point');
+      const cpuPoint = chartPoint(samples, 'cpu');
+      const memPoint = chartPoint(samples, 'mem');
+      if (points[0] && memPoint) { points[0].setAttribute('cx', memPoint.x); points[0].setAttribute('cy', memPoint.y); }
+      if (points[1] && cpuPoint) { points[1].setAttribute('cx', cpuPoint.x); points[1].setAttribute('cy', cpuPoint.y); }
+      const axis = page.querySelectorAll('.x-axis span');
+      const pick = ratio => samples[Math.min(samples.length - 1, Math.floor(ratio * (samples.length - 1)))];
+      const ratios = [0, 0.25, 0.5, 0.75, 1];
+      axis.forEach((span, index) => {
+        const sample = pick(ratios[index]);
+        if (!sample) return;
+        const date = new Date(sample.t);
+        span.textContent = index === ratios.length - 1 ? '现在' : `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+      });
+      const note = page.querySelector('.chart-note');
+      if (note) note.innerHTML = `<i data-lucide="clock-3"></i>每 30 秒采样 · 已采集 ${samples.length} 个点`;
+    }
+  } catch { /* 图表保持默认 */ }
+
+  try {
+    const docker = await primeOpsApi.json('/api/docker/containers');
+    const badge = document.querySelector('.nav-item[data-section="containers"] .nav-count');
+    if (badge) {
+      if (docker.available) {
+        badge.style.display = '';
+        badge.textContent = String(docker.containers.length);
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch { /* 忽略 */ }
+
+  lucide.createIcons();
+}
+window.applyRealOverview = applyRealOverview;
+
+// 初次加载立即拉取真实数据覆盖静态演示值
+applyRealOverview();
+
+setInterval(() => {
+  const clock = document.querySelector('.sync-status .mono');
+  if (!clock) return;
+  const now = new Date();
+  clock.textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+}, 1000);

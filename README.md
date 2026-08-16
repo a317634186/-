@@ -104,18 +104,46 @@ node server.cjs
 
 ## 功能概览
 
-| 模块 | 说明 |
-|------|------|
-| 主机总览 | 实时查看所有节点的运行状态、资源使用与最新事件 |
-| 集群监控 | 节点连接状态、出站上报策略与地区分布 |
-| AI 运维助手 | 支持多 Provider（DeepSeek / 智谱 GLM / 通义千问 / Kimi 等），只读诊断，写操作逐次确认 |
-| 系统管理 | 主机名、SSH 防御、BBR、Swap、内核、软件源管理 |
-| 网站管理 | Nginx 站点发现、证书监控、LDNMP 环境健康 |
-| Docker 管理 | 容器、镜像、网络、卷的统一管理与日志查看 |
-| 应用市场 | 已审计应用目录，支持安装、更新与回滚 |
-| 服务器体检 | IP / 网络线路 / 硬件性能综合测评 |
-| 审计与恢复 | 变更记录、配置版本冲突检测、回滚机制 |
-| 账户安全 | TOTP 两步验证、恢复码、登录限速、会话管理 |
+| 模块 | 数据来源 | 说明 |
+|------|----------|------|
+| 主机总览 | ✅ 真实 | 本机 CPU / 内存 / 磁盘实时读取，趋势图每 30 秒采样 |
+| Docker 管理 | ✅ 真实 | 列出所有容器与镜像（docker ps -a / docker images），支持启动/停止/重启/查看日志 |
+| 应用市场 | ✅ 真实 | 14 个精选应用 + Docker Hub 全网实时搜索，一键拉取镜像 |
+| 系统管理 | ✅ 真实 | 主机名 / 内核 / 运行时间 / CPU / 内存 / 磁盘 / IP 真实读取 |
+| AI 运维助手 | 演示 | Provider 配置界面已就绪，AI 调用需接入后端 |
+| 集群监控 / 网站管理 / 体检 / 审计 / 账户安全 | 演示 | 多主机与写操作类功能需接入 Agent 后端 |
+
+## 面板访问密钥
+
+通过安装脚本部署时，会自动生成一个访问密钥（API Token）保护真实数据接口：
+
+- 安装完成时会在屏幕上显示，形如 `a1b2c3d4...`
+- 首次打开面板输入一次，浏览器会记住
+- 忘记了在服务器上运行：`cat /etc/primeops/token`
+- 本地开发不设置 `PRIMEOPS_TOKEN` 环境变量则不启用
+
+## Docker 功能说明
+
+面板通过服务器上的 Docker CLI 读取真实数据：
+
+- 服务器已装 Docker：安装脚本自动把面板用户加入 docker 组，开箱即用
+- 未装 Docker：面板会明确提示「未检测到 Docker Engine」，执行 `apt install docker.io` 后打开面板刷新即可
+
+## 后端 API
+
+零依赖 Node.js 原生实现，所有接口需携带 `X-PrimeOps-Token` 请求头（启用时）：
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/system` | GET | 主机名 / 内核 / CPU / 内存 / 磁盘 / IP / 运行时间 |
+| `/api/history` | GET | 资源趋势采样（每 30 秒，内存中保留 24 小时） |
+| `/api/docker/containers` | GET | 所有容器（docker ps -a） |
+| `/api/docker/images` | GET | 所有镜像（docker images） |
+| `/api/docker/container/:id/start\|stop\|restart` | POST | 容器启动 / 停止 / 重启 |
+| `/api/docker/logs/:id` | GET | 容器最近 200 行日志 |
+| `/api/market` | GET | 精选应用目录 |
+| `/api/market/search?q=` | GET | Docker Hub 实时搜索（服务端代理 + 5 分钟缓存） |
+| `/api/market/pull` | POST | 真实执行 docker pull {image} |
 
 ## 环境变量
 
@@ -138,7 +166,7 @@ node server.cjs
 
 ## 当前状态
 
-页面中的主机状态、AI 工具结果和任务队列为演示数据。真实 Linux 主机控制、Provider API 调用、Agent 通信和加密密钥存储需要接入后端服务。
+主机总览、Docker 管理、应用市场、系统基础信息已接入真实数据。AI 运维助手的模型调用、多主机 Agent 通信、网站管理、服务器体检等模块仍为演示界面，需要继续接入后端能力。
 
 ## 技术栈
 
