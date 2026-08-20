@@ -41,6 +41,19 @@ function runButtonTask(button, startMessage, completeMessage, duration = 700, on
   }, duration);
 }
 
+async function runButtonTaskAsync(button, startMessage, task) {
+  if (!button || button.classList.contains('is-loading')) return;
+  button.classList.add('is-loading');
+  button.disabled = true;
+  showToast(startMessage);
+  let message = '已完成';
+  try { message = (await task()) || message; } catch { message = '操作失败'; }
+  button.classList.remove('is-loading');
+  button.disabled = false;
+  showToast(message);
+}
+window.runButtonTaskAsync = runButtonTaskAsync;
+
 function openWriteConfirmation({ title, description, confirmLabel = '确认并加入执行队列', onConfirm }) {
   const backdrop = document.getElementById('confirm-backdrop');
   pendingConfirmation = onConfirm;
@@ -88,12 +101,13 @@ document.getElementById('refresh-button').addEventListener('click', event => {
   const button = event.currentTarget;
   button.classList.add('is-loading');
   button.querySelector('svg').style.transform = 'rotate(360deg)';
-  showToast('正在同步 12 台在线主机的最新状态…');
+  showToast('正在读取本机真实状态…');
+  applyRealOverview();
   setTimeout(() => {
     button.classList.remove('is-loading');
     button.querySelector('svg').style.transform = '';
-    showToast('状态已更新 · 09:41:36');
-  }, 900);
+    showToast('状态已刷新');
+  }, 700);
 });
 
 function openModal() {
@@ -129,7 +143,7 @@ document.querySelectorAll('.connection-option').forEach(option => option.addEven
   check.dataset.lucide = 'check'; check.className = 'check-icon'; option.appendChild(check); lucide.createIcons();
 }));
 
-document.getElementById('continue-modal').addEventListener('click', () => {
+document.getElementById('continue-modal').addEventListener('click', async () => {
   const input = modalBackdrop.querySelector('input');
   if (authGenerated) { closeModal(); return; }
   const endpoint = input.value.trim();
@@ -137,8 +151,11 @@ document.getElementById('continue-modal').addEventListener('click', () => {
   const port = match ? Number(match[1]) : 0;
   if (!match || port < 1 || port > 65535) { input.focus(); showToast('请输入有效的 IP 或域名，以及 1-65535 端口'); return; }
   const transport = modalBackdrop.querySelector('.connection-option.selected strong')?.textContent.trim() || 'HTTPS';
-  const code = `PO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-  primeOpsState.pendingHosts.push({ endpoint, transport, code, createdAt: Date.now() });
+  let result;
+  try { result = await primeOpsApi.json('/api/cluster/hosts', { method: 'POST', body: JSON.stringify({ endpoint, transport }) }); }
+  catch { showToast('无法连接后端，添加失败'); return; }
+  if (result.error) { showToast(result.error); return; }
+  const code = result.host.code;
   document.getElementById('auth-code').textContent = code;
   document.getElementById('auth-result-copy').textContent = `${endpoint} · ${transport} 通道已创建，等待目标主机确认。`;
   document.getElementById('auth-result').hidden = false;
@@ -146,11 +163,12 @@ document.getElementById('continue-modal').addEventListener('click', () => {
   lucide.createIcons();
   authGenerated = true;
   showToast(`一次性授权码已生成 · ${endpoint}`);
+  if (typeof initClusterView === 'function' && document.querySelector('#cluster-nodes')) initClusterView();
 });
 
 document.getElementById('open-ai-button').addEventListener('click', openAiDrawer);
 document.querySelectorAll('[data-action="event-detail"]').forEach(item => item.addEventListener('click', () => showToast('事件详情已加入审计队列')));
-document.getElementById('host-filter').addEventListener('click', () => showToast('筛选：全部状态 · 在线 12 · 需关注 2'));
+document.getElementById('host-filter').addEventListener('click', () => showToast('当前为本机单节点模式'));
 
 function openAiDrawer() {
   const backdrop = document.getElementById('ai-drawer-backdrop');
@@ -174,54 +192,83 @@ document.getElementById('ai-drawer-settings').addEventListener('click', () => {
   setTimeout(() => document.querySelector('#page-content [data-view-action="provider-settings"]')?.click(), 0);
 });
 document.getElementById('drawer-model-select').addEventListener('change', event => showToast(`已切换模型：${event.target.value}`));
-document.getElementById('drawer-send').addEventListener('click', () => {
-  const input = document.getElementById('drawer-input');
+window.aiConversation = window.aiConversation || [];
+
+async function sendDrawerMessage(text) {
   const chat = document.getElementById('drawer-chat');
-  if (!input.value.trim()) { input.focus(); showToast('请先输入想了解的主机问题'); return; }
+  if (!chat) return;
+  chat.querySelector('.drawer-welcome')?.remove();
   const message = document.createElement('div');
   message.className = 'drawer-message user';
-  const prompt = input.value.trim();
-  message.innerHTML = `<span class="drawer-message-avatar">YL</span><div><p>${escapeHtml(prompt)}</p></div>`;
+  message.innerHTML = `<span class="drawer-message-avatar">YL</span><div><p>${escapeHtml(text)}</p></div>`;
   chat.appendChild(message);
-  input.value = '';
+  window.aiConversation.push({ role: 'user', content: text });
   chat.scrollTop = chat.scrollHeight;
-  showToast('消息已发送，AI 正在读取固定主机工具');
-  appendDrawerAssistantReply(prompt);
+
+  const loading = document.createElement('div');
+  loading.className = 'drawer-message assistant loading';
+  loading.innerHTML = '<span class="drawer-message-icon"><i data-lucide="sparkles"></i></span><div><p>正在读取本机真实状态并思考…</p></div>';
+  chat.appendChild(loading);
+  lucide.createIcons();
+  chat.scrollTop = chat.scrollHeight;
+
+  let data;
+  try {
+    data = await primeOpsApi.json('/api/ai/chat', { method: 'POST', body: JSON.stringify({ messages: window.aiConversation }) });
+  } catch {
+    data = { error: '无法连接后端' };
+  }
+  loading.remove();
+
+  if (data.error) {
+    const err = document.createElement('div');
+    err.className = 'drawer-message assistant';
+    err.innerHTML = `<span class="drawer-message-icon"><i data-lucide="alert-triangle"></i></span><div><p>${escapeHtml(data.error)}</p><small><i data-lucide="settings-2"></i>可点击右上角设置，配置模型 API</small></div>`;
+    chat.appendChild(err);
+    lucide.createIcons();
+    chat.scrollTop = chat.scrollHeight;
+    return;
+  }
+
+  window.aiConversation.push({ role: 'assistant', content: data.reply });
+  const tools = [...new Set(data.tools || [])];
+  const toolHtml = tools.length ? `<div class="drawer-tool-list">${tools.map(tool => `<span><i data-lucide="check"></i>${escapeHtml(tool)} · 已读取</span>`).join('')}</div>` : '';
+  const reply = document.createElement('div');
+  reply.className = 'drawer-message assistant tool-result-message';
+  reply.innerHTML = `<span class="drawer-message-icon"><i data-lucide="sparkles"></i></span><div><p>${escapeHtml(data.reply || '（无回复）').replace(/\n/g, '<br>')}</p>${toolHtml}<small><i data-lucide="lock"></i>只读结果，未执行写操作</small></div>`;
+  chat.appendChild(reply);
+  lucide.createIcons();
+  chat.scrollTop = chat.scrollHeight;
+}
+window.sendDrawerMessage = sendDrawerMessage;
+
+document.getElementById('drawer-send').addEventListener('click', () => {
+  const input = document.getElementById('drawer-input');
+  const text = input.value.trim();
+  if (!text) { input.focus(); showToast('请先输入想了解的主机问题'); return; }
+  input.value = '';
+  sendDrawerMessage(text);
 });
 document.getElementById('drawer-input').addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('drawer-send').click(); }
 });
 
-function appendDrawerAssistantReply(prompt, resultType = '') {
-  const chat = document.getElementById('drawer-chat');
-  const loading = document.createElement('div');
-  loading.className = 'drawer-message assistant loading';
-  loading.innerHTML = '<span class="drawer-message-icon"><i data-lucide="sparkles"></i></span><div><p>正在读取固定工具</p></div>';
-  chat.appendChild(loading);
-  lucide.createIcons();
-  chat.scrollTop = chat.scrollHeight;
-  window.setTimeout(() => {
-    loading.remove();
-    const lower = `${prompt} ${resultType}`.toLowerCase();
-    let response = '当前主机整体状态正常。CPU 31%，内存 64%，磁盘 52%，暂未发现需要立即执行的高风险操作。';
-    let tools = ['host.get_status', 'service.list'];
-    if (lower.includes('磁盘') || lower.includes('disk')) { response = '磁盘使用率 52%，I/O 延迟稳定。hk-edge-02 的 /var 使用率为 91%，建议先检查 Docker 日志和旧镜像。'; tools = ['host.get_status', 'disk.get_usage', 'docker.list_containers']; }
-    if (lower.includes('服务') || lower.includes('service')) { response = '已检查 42 个系统服务，当前没有失败服务。SSH 防御与 Docker Engine 均处于运行状态。'; tools = ['service.list', 'service.get_failures']; }
-    const reply = document.createElement('div');
-    reply.className = 'drawer-message assistant tool-result-message';
-    reply.innerHTML = `<span class="drawer-message-icon"><i data-lucide="sparkles"></i></span><div><p>${escapeHtml(response)}</p><div class="drawer-tool-list">${tools.map(tool => `<span><i data-lucide="check"></i>${escapeHtml(tool)} · 已读取</span>`).join('')}</div><small><i data-lucide="lock"></i>只读结果，未执行写操作</small></div>`;
-    chat.appendChild(reply);
-    lucide.createIcons();
-    chat.scrollTop = chat.scrollHeight;
-  }, 650);
-}
-
 document.querySelectorAll('[data-drawer-action]').forEach(button => button.addEventListener('click', () => {
   const action = button.dataset.drawerAction;
-  if (action === 'clear-chat') { document.getElementById('drawer-chat').innerHTML = '<div class="drawer-welcome"><span class="drawer-welcome-icon"><i data-lucide="message-circle"></i></span><h2>会话已清空</h2><p>可以重新发起主机诊断或输入一个运维问题。</p></div>'; lucide.createIcons(); showToast('当前会话已清空'); return; }
-  const copy = { diagnose: '已创建当前主机诊断任务', 'disk-check': '正在读取磁盘使用率、I/O 和 Docker 日志', 'service-check': '正在读取系统服务状态与失败原因' };
-  showToast(copy[action] || '诊断任务已创建');
-  if (action !== 'clear-chat') appendDrawerAssistantReply(action === 'diagnose' ? '诊断当前主机' : action === 'disk-check' ? '检查磁盘' : '查看服务', action);
+  if (action === 'clear-chat') {
+    document.getElementById('drawer-chat').innerHTML = '<div class="drawer-welcome"><span class="drawer-welcome-icon"><i data-lucide="message-circle"></i></span><h2>会话已清空</h2><p>可以重新发起主机诊断或输入一个运维问题。</p></div>';
+    window.aiConversation = [];
+    lucide.createIcons();
+    showToast('当前会话已清空');
+    return;
+  }
+  const prompts = {
+    diagnose: '请诊断当前主机整体健康状况：读取 CPU、内存、磁盘、负载与失败服务，给出结论和建议。',
+    'disk-check': '检查本机磁盘使用率和空间占用，并结合 Docker 容器情况给出清理建议。',
+    'service-check': '检查系统服务状态，列出是否存在失败的服务并给出排查建议。'
+  };
+  openAiDrawer();
+  sendDrawerMessage(prompts[action] || '诊断当前主机');
 }));
 document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeAiDrawer(); closeWriteConfirmation(); } });
 

@@ -111,9 +111,13 @@ node server.cjs
 | 主机总览 | ✅ 真实 | 本机 CPU / 内存 / 磁盘实时读取，趋势图每 30 秒采样 |
 | Docker 管理 | ✅ 真实 | 列出所有容器与镜像（docker ps -a / docker images），支持启动/停止/重启/查看日志 |
 | 应用市场 | ✅ 真实 | 14 个精选应用 + Docker Hub 全网实时搜索，一键拉取镜像 |
-| 系统管理 | ✅ 真实 | 主机名 / 内核 / 运行时间 / CPU / 内存 / 磁盘 / IP 真实读取 |
-| AI 运维助手 | 演示 | Provider 配置界面已就绪，AI 调用需接入后端 |
-| 集群监控 / 网站管理 / 体检 / 审计 / 账户安全 | 演示 | 多主机与写操作类功能需接入 Agent 后端 |
+| 系统管理 | ✅ 真实 | 主机名 / 内核 / CPU / 内存 / 磁盘 / IP，SSH 配置、BBR、Swap、软件源、可更新软件包真实读取 |
+| AI 运维助手 | ✅ 真实 | 接入 OpenAI 兼容 / Anthropic 模型，带只读主机工具（读取真实 CPU / 内存 / 磁盘 / Docker / 服务 / 日志）进行诊断 |
+| 集群监控 | ✅ 真实 | 实时展示本机控制节点真实指标；可添加待接入主机（多主机上报需在目标主机安装节点） |
+| 网站管理 | ✅ 真实 | 真实扫描 Nginx 站点（sites-enabled / conf.d）、类型、端口、Let's Encrypt 证书到期与 PHP 状态 |
+| 服务器体检 | ✅ 真实 | 真实检查 CPU / 内存 / 磁盘 / 负载 / 外网连通 / 内核优化，计算综合评分与实时日志 |
+| 审计与恢复 | ✅ 真实 | 面板执行的写操作（容器启停、拉取、AI 配置、令牌轮换等）真实落盘记录，可导出 |
+| 账户安全 | ✅ 真实 | 真实令牌状态与轮换、当前会话、登录限速、标准 TOTP 两步验证（生成密钥 + 验证 + 恢复码） |
 
 ## 面板访问密钥
 
@@ -146,6 +150,19 @@ node server.cjs
 | `/api/market` | GET | 精选应用目录 |
 | `/api/market/search?q=` | GET | Docker Hub 实时搜索（服务端代理 + 5 分钟缓存） |
 | `/api/market/pull` | POST | 真实执行 docker pull {image} |
+| `/api/ai/config` | GET / POST | 读取 / 保存 AI 模型配置（密钥仅落盘本机，读取时脱敏） |
+| `/api/ai/test` | POST | 真实测试模型连接（OpenAI 兼容拉取模型列表 / Anthropic 最小请求） |
+| `/api/ai/chat` | POST | 真实对话，OpenAI 兼容支持 function-calling 调用只读主机工具 |
+| `/api/system/config` | GET | SSH 配置 / BBR / Swap / 软件源真实读取 |
+| `/api/system/update-check` | GET | apt 模拟升级，统计可更新软件包 |
+| `/api/websites` | GET | 真实扫描 Nginx 站点与 Let's Encrypt 证书 |
+| `/api/checkup` | GET / POST | 真实运行服务器体检，返回评分、检查项与日志 |
+| `/api/cluster` | GET | 本机节点真实指标 + 待接入主机队列 |
+| `/api/cluster/hosts` | POST / DELETE | 添加 / 移除待接入主机（持久化） |
+| `/api/audit` | GET | 读取真实审计日志与统计 |
+| `/api/security` | GET | 令牌状态、当前会话、限速、TOTP 状态 |
+| `/api/security/totp/setup\|enable\|disable` | POST | 标准 TOTP 密钥生成、启用（返回恢复码）、关闭 |
+| `/api/security/rotate-token` | POST | 轮换访问令牌（旧令牌立即失效） |
 
 ## 环境变量
 
@@ -168,7 +185,11 @@ node server.cjs
 
 ## 当前状态
 
-主机总览、Docker 管理、应用市场、系统基础信息已接入真实数据。AI 运维助手的模型调用、多主机 Agent 通信、网站管理、服务器体检等模块仍为演示界面，需要继续接入后端能力。
+所有模块均已接入真实后端能力：主机总览、Docker 管理、应用市场、系统管理、AI 运维助手、集群监控、网站管理、服务器体检、审计与恢复、账户安全都读取 / 操作服务器真实数据，不再有演示占位界面。
+
+数据落盘在数据目录（默认 `/opt/primeops/data`，本地开发为项目下 `.primeops-data/`），包含 AI 配置、审计日志、待接入主机、安全设置与轮换令牌。
+
+> 说明：**多主机集群监控**需要在每台目标主机安装 PrimeOps 节点后由其主动上报，控制节点本身已实时监控；**系统写操作**（如修改 SSH / 内核参数）默认以隔离用户运行时受权限限制，面板当前对这些配置项提供真实只读展示。
 
 ## 技术栈
 
